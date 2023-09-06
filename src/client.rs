@@ -6,10 +6,10 @@ use tonic::Request;
 use tonic::transport::Channel;
 use tokio::time;
 use tokio::time::Duration;
-use crate::accounts;
+use crate::accounts::{self, Account};
 
 #[derive(Default)]
-struct MyFilter(Filter);
+pub struct MyFilter(Filter);
 
 impl Deref for MyFilter {
     type Target = Filter;
@@ -25,12 +25,8 @@ impl DerefMut for MyFilter {
     }
 }
 
-pub async fn run_filters(client: &mut AccountsServiceClient<Channel>, filters: Vec<Filter>) -> Result<()> {
-    let mut jbutt = MyFilter::default();
-    jbutt.ssn = Some(508);
-    jbutt.id = 0;
-    let filters = vec![jbutt];
-
+pub async fn run_filters(client: &mut AccountsServiceClient<Channel>, filters: Vec<MyFilter>) -> Result<Vec<Account>> {
+    
     let outbound = async_stream::stream! {
         let mut interval = time::interval(Duration::from_secs(1));
         
@@ -44,13 +40,15 @@ pub async fn run_filters(client: &mut AccountsServiceClient<Channel>, filters: V
     let response = client.read(Request::new(outbound)).await?;
     let mut inbound = response.into_inner();
 
+    let mut accounts = Vec::with_capacity(10);
+
     while let Some(account) = inbound.message().await? {
-        println!("{:#?}", account);
+        accounts.push(account);
     }
 
-    Ok(())
+    Ok(accounts)
 }
 
 pub async fn create_client() -> Result<AccountsServiceClient<Channel>> {
-    Ok(AccountsServiceClient::connect("http://127.0.0.1:50051").await?)
+    Ok(AccountsServiceClient::connect("http://0.0.0.0:50051").await?)
 }
