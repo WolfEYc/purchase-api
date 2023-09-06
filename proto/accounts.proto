@@ -1,0 +1,37 @@
+syntax = "proto3";
+package accounts;
+
+service AccountsService {
+    rpc read(stream Filter) returns (stream Account);
+}
+
+message Filter {
+    optional int64 account_number = 1;
+    optional int64 mobile_number = 2;
+    optional string email_address = 3;
+    optional int32 ssn = 4;
+    optional int64 dob = 5;
+    optional int32 zip = 6;
+    optional string account_state = 7;
+    optional string city = 8;
+    optional int32 unit = 9;
+    optional string street_address = 10;
+    optional string first_name = 11;
+    optional string last_name = 12;
+}
+
+message Account {
+    int64 account_number = 1;
+    int64 mobile_number = 2;
+    string email_address = 3;
+    int32 ssn = 4;
+    string dob = 5;
+    int32 zip = 6;
+    string account_state = 7;
+    string city = 8;
+    optional int32 unit = 9;
+    string street_address = 10;
+    string first_name = 11;
+    string last_name = 12;
+    int32 filter_checksum = 13;
+}

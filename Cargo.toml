@@ -1,0 +1,19 @@
+[package]
+name = "purchase-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+color-eyre = "0.6.2"
+prost = "0.12.0"
+tonic = "0.10.0"
+tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
+tokio-stream = "0.1.14"
+sqlx = { version = "0.7.1", features = ["postgres", "runtime-tokio-rustls", "time", "chrono"] }
+dotenvy = "0.15.7"
+async-stream = "0.3.5"
+chrono = "0.4.29"
+
+[build-dependencies]
+tonic-build = "0.10.0"
+
