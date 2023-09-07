@@ -1,16 +1,15 @@
 use std::net::SocketAddr;
-use std::pin::Pin;
 use sqlx::Execute;
-use tokio_stream::StreamExt;
-use tonic::{Request, Response, Status, Streaming};
-use tokio_stream::Stream;
+use tonic::{Request, Response, Status};
 use color_eyre::Result;
 use sqlx::FromRow;
 use sqlx::types::chrono::NaiveDate;
 use sqlx::Postgres;
 use sqlx::QueryBuilder;
 use tonic::transport::Server;
+use tonic_web::GrpcWebLayer;
 
+use crate::accounts::AccountsPayload;
 use crate::accounts::accounts_service_server::{AccountsService, AccountsServiceServer};
 use crate::accounts::{Account, Filter};
 use crate::state::{state, create_appstate};
@@ -49,17 +48,14 @@ impl TryFrom<&DBAccount> for Account {
             email_address: value.email_address.clone(),
             mobile_number: value.mobile_number.parse()?,
             account_number: value.account_number,
-            filter_id: 0
         })
     }
 }
 
-fn db_to_proto(db_accounts: Vec<DBAccount>, filter: Filter) -> Result<Vec<Account>> {
-    
+fn db_to_proto(db_accounts: Vec<DBAccount>) -> Result<Vec<Account>> {
     let mut accounts = Vec::with_capacity(db_accounts.len());
     for db_account in db_accounts {
-        let mut account = Account::try_from(&db_account)?;
-        account.filter_id = filter.id;
+        let account = Account::try_from(&db_account)?;
         accounts.push(account);
     }
     
@@ -76,7 +72,7 @@ pub async fn read(filter: Filter) -> Result<Vec<Account>> {
 
         let results = query.fetch_all(&state().db).await?;
 
-        return db_to_proto(results, filter);
+        return db_to_proto(results);
     };
 
     let mut seperated = query.separated(" AND ");
@@ -122,35 +118,27 @@ pub async fn read(filter: Filter) -> Result<Vec<Account>> {
         .fetch_all(&state().db)
         .await?;
 
-    db_to_proto(results, filter)
+    db_to_proto(results)
 }
 
 #[derive(Debug, Default)]
 pub struct MyAccounts {}
 
+impl From<Vec<Account>> for AccountsPayload {
+    fn from(value: Vec<Account>) -> Self {
+        AccountsPayload { accounts: value }
+    }
+}
+
 #[tonic::async_trait]
 impl AccountsService for MyAccounts {
-    type ReadStream = Pin<Box<dyn Stream<Item = Result<Account, Status>> + Send  + 'static>>;
-
-    async fn read(&self, request: Request<Streaming<Filter>>) -> Result<Response<Self::ReadStream>, Status> {
-        let mut stream = request.into_inner();
-        
-        let output = async_stream::try_stream! {
-            while let Some(filter) = stream.next().await {
-                let filter = filter?;
-                println!("{:#?}", filter);
-                let accounts = read(filter)
-                .await
-                .map_err(|err| Status::internal(err.to_string()))?;
-                
-                for account in accounts {
-                    println!("{:#?}", account);
-                    yield account;
-                }
-            }
-        };
-
-        Ok(Response::new(Box::pin(output)))
+    async fn read(&self, request: Request<Filter>) -> Result<Response<AccountsPayload>, Status> {
+        let filter = request.into_inner();
+        let accounts = read(filter)
+            .await
+            .map_err(|err| Status::invalid_argument(err.to_string()))?;
+    
+        Ok(Response::new(accounts.into()))
     }
 }
 
@@ -159,6 +147,8 @@ pub async fn create_server() -> Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 50051));
     
     Ok(Server::builder()
+        .accept_http1(true)
+        .layer(GrpcWebLayer::new())
         .add_service(AccountsServiceServer::new(MyAccounts::default()))
         .serve(addr)
         .await?)

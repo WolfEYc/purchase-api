@@ -2,7 +2,7 @@ syntax = "proto3";
 package accounts;
 
 service AccountsService {
-    rpc Read(stream Filter) returns (stream Account);
+    rpc Read(Filter) returns (AccountsPayload);
 }
 
 message Filter {
@@ -18,7 +18,10 @@ message Filter {
     optional string street_address = 10;
     optional string first_name = 11;
     optional string last_name = 12;
-    uint32 id = 13;
+}
+
+message AccountsPayload {
+    repeated Account accounts = 1;
 }
 
 message Account {
@@ -34,5 +37,4 @@ message Account {
     string street_address = 10;
     string first_name = 11;
     string last_name = 12;
-    uint32 filter_id = 13;
 }

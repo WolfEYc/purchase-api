@@ -4,12 +4,10 @@ use accounts::accounts_service_client::AccountsServiceClient;
 use color_eyre::Result;
 use tonic::Request;
 use tonic::transport::Channel;
-use tokio::time;
-use tokio::time::Duration;
 use crate::accounts::{self, Account};
 
 #[derive(Default)]
-pub struct MyFilter(Filter);
+pub struct MyFilter(pub Filter);
 
 impl Deref for MyFilter {
     type Target = Filter;
@@ -25,26 +23,9 @@ impl DerefMut for MyFilter {
     }
 }
 
-pub async fn run_filters(client: &mut AccountsServiceClient<Channel>, filters: Vec<MyFilter>) -> Result<Vec<Account>> {
-    
-    let outbound = async_stream::stream! {
-        let mut interval = time::interval(Duration::from_secs(1));
-        
-        for filter in filters {
-            interval.tick().await;
-
-            yield filter.0;
-        }
-    };
-
-    let response = client.read(Request::new(outbound)).await?;
-    let mut inbound = response.into_inner();
-
-    let mut accounts = Vec::with_capacity(10);
-
-    while let Some(account) = inbound.message().await? {
-        accounts.push(account);
-    }
+pub async fn run_filter(client: &mut AccountsServiceClient<Channel>, filter: Filter) -> Result<Vec<Account>> {
+    let res = client.read(Request::new(filter)).await?;
+    let accounts = res.into_inner().accounts;
 
     Ok(accounts)
 }

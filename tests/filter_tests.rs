@@ -18,7 +18,6 @@ fn jbutts_account() -> Account {
         street_address: "6649 N Blue Gum St".to_string(),
         first_name: "Butt".to_string(),
         last_name: "James".to_string(),
-        filter_id: 0,
     }
 }
 
@@ -36,7 +35,6 @@ fn msmith_account() -> Account {
         street_address: "4306 Yoakum Blvd".to_string(),
         first_name: "Michael".to_string(),
         last_name: "Smith".to_string(),
-        filter_id: 0,
     }
 }
 
@@ -44,13 +42,13 @@ fn run_test_server() -> tokio::task::JoinHandle<Result<()>> {
     tokio::spawn(async move { create_server().await })
 }
 
-async fn e2e_filter_test(filters: Vec<MyFilter>, expected_accounts: Vec<Account>) -> Result<()> {
+async fn e2e_filter_test(filter: MyFilter, expected_accounts: Vec<Account>) -> Result<()> {
     let server = run_test_server();
     sleep(Duration::from_secs(1)).await;
 
     let mut client = create_client().await?;
 
-    let accounts = run_filters(&mut client, filters).await?;
+    let accounts = run_filter(&mut client, filter.0).await?;
     
     assert_eq!(accounts, expected_accounts);
 
@@ -61,55 +59,47 @@ async fn e2e_filter_test(filters: Vec<MyFilter>, expected_accounts: Vec<Account>
 async fn account_number() -> Result<()> {
     let mut filter = MyFilter::default();
     filter.account_number = Some(26522);
-    filter.id = 0;
-    let filters = vec![filter];
 
     let accounts = vec![
         jbutts_account()
     ];
 
-    e2e_filter_test(filters, accounts).await
+    e2e_filter_test(filter, accounts).await
 }
 
 #[tokio::test]
 async fn mobile_number() -> Result<()> {
     let mut filter = MyFilter::default();
     filter.mobile_number = Some(713492);
-    filter.id = 0;
-    let filters = vec![filter];
 
     let accounts = vec![
         jbutts_account(),
         msmith_account()
     ];
 
-    e2e_filter_test(filters, accounts).await
+    e2e_filter_test(filter, accounts).await
 }
 
 #[tokio::test]
 async fn email_address() -> Result<()> {
     let mut filter = MyFilter::default();
     filter.email_address = Some("jbutt".to_string());
-    filter.id = 0;
-    let filters = vec![filter];
 
     let accounts = vec![
         jbutts_account()
     ];
 
-    e2e_filter_test(filters, accounts).await
+    e2e_filter_test(filter, accounts).await
 }
 
 #[tokio::test]
 async fn ssn() -> Result<()> {
     let mut filter = MyFilter::default();
     filter.ssn = Some(8859);
-    filter.id = 0;
-    let filters = vec![filter];
 
     let accounts = vec![
         jbutts_account()
     ];
 
-    e2e_filter_test(filters, accounts).await
+    e2e_filter_test(filter, accounts).await
 }
